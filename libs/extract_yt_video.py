@@ -122,12 +122,6 @@ def isitbroad(url, cookies_filepath):
         response = session.get(url, headers=headers)
         response.raise_for_status()
 
-        # with open("res2.txt","w+", encoding="utf-8") as f:
-        #     f.write(response.text)
-        
-        # # title_match = re.search(r'"title":{"simpleText":"([^"]+)"', response.text)
-        # test = re.search(r'"liveStreamOfflineSlateRenderer":{(\w+)"mainText":(\w+),"', response.text)
-        # print("DEBNUG", test)
         if '{"runs":[{"text":"Waiting for "}' in response.text:
             return True 
         else:

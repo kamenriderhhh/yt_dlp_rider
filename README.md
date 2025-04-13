@@ -7,10 +7,21 @@ This project is intended for personal usage and hope one day able to contribute 
 ---
 
 ## Features
-WIP
+[WIP]
+Download video via url: DONE
+Upload video via script: WIP
 
 ## Usages
-WIP
+#### Install python 3.10 and pip install uv
+
+Initialize project/environment
+```
+uv sync
+```
+Then run the python script with replace the url with actual YT video url
+```
+uv run main.py -l [url]
+```
 
 ## uv
 uv related commands
