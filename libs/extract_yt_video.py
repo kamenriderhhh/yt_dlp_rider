@@ -1,4 +1,4 @@
-import requests, datetime, re, traceback, sys, threading, subprocess
+import requests, datetime, re, traceback, sys, threading, subprocess, os
 from time import sleep
 from http.cookiejar import MozillaCookieJar
 
@@ -135,24 +135,43 @@ def isitbroad(url, cookies_filepath):
         return False 
     
 def start_recording(url, save_path, cookies_filepath=""):
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
     yt_dlp_command = f'yt-dlp -o "{save_path}/%(title)s.%(ext)s" -f bestvideo+bestaudio/best ' \
                      f'--merge-output-format mp4 --retries 3 ' \
                      f'--socket-timeout 30 {url}'
     if cookies_filepath:
         yt_dlp_command += " --cookies {token_file}"
 
-    full_command = f'cmd.exe /c start cmd.exe /k "{yt_dlp_command}"'
+    # full_command = f'cmd.exe /c start cmd.exe /k "{yt_dlp_command}"'
 
-    try:
-        subprocess.Popen(full_command, shell=True)
-        print("Recording started...")
-    except Exception as e:
-        print(f"An error occurred while starting the recording process: {str(e)}")
+    # try:
+    #     subprocess.Popen(full_command, shell=True)
+    #     print("Recording started...")
+    # except Exception as e:
+    #     print(f"An error occurred while starting the recording process: {str(e)}")
+
+    def run_command():
+        try:
+            result = subprocess.run(yt_dlp_command, shell=True, check=True, text=True)
+            print("Recording completed successfully.")
+        except subprocess.CalledProcessError as e:
+            print(f"An error occurred while recording: {e}")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+
+    # Create and start a thread to run the command
+    recording_thread = threading.Thread(target=run_command)
+    recording_thread.start()
+
+    # Wait for the thread to finish
+    recording_thread.join()
+    print("Recording process finished.")
 
 def extract_yt_video(video_url, save_path="C:/Users/USER/Downloads/yt-dlp-temp"):
     update_timer(video_url, save_path, print_details=True)
     
-
 
 if __name__ == "__main__":
     video_url = "https://www.youtube.com/watch?v=yanhEf8jK8o"  # Replace with actual video URL 米津玄師 - 地球儀

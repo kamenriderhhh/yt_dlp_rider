@@ -88,7 +88,7 @@ def get_authenticated_service(args):
 
 def initialize_upload(youtube, options):
     tags = None
-    if options.keywords:
+    if getattr(options, "keywords", None):
         tags = options.keywords.split(",")
 
     body = dict(
@@ -157,34 +157,60 @@ def resumable_upload(insert_request):
             time.sleep(sleep_seconds)
 
 
-if __name__ == "__main__":
-    argparser.add_argument("--file", required=True, help="Video file to upload")
-    argparser.add_argument("--title", help="Video title")
-    argparser.add_argument("--description", help="Video description")
-    argparser.add_argument("--category", default="22",
-        help="Numeric video category. " +
-        "See https://developers.google.com/youtube/v3/docs/videoCategories/list")
-    argparser.add_argument("--keywords", help="Video keywords, comma separated", default="")
-    argparser.add_argument(
+def init_oauth_argparser(add_to_parser=None):
+    if add_to_parser:
+        parser = add_to_parser
+    else:
+        parser = argparse.ArgumentParser(description="YouTube OAuth Argument Parser")
+
+    parser.add_argument("--file", help="Video file to upload")
+    parser.add_argument("--title", help="Video title")
+    parser.add_argument("--description", help="Video description")
+    parser.add_argument(
+        "--category",
+        default="22",
+        help="Numeric video category. "
+        + "See https://developers.google.com/youtube/v3/docs/videoCategories/list",
+    )
+    parser.add_argument(
+        "--keywords", help="Video keywords, comma separated", default=""
+    )
+    parser.add_argument(
         "--privacyStatus",
         choices=VALID_PRIVACY_STATUSES,
         default=VALID_PRIVACY_STATUSES[1],
         help="Video privacy status. Default is 'private'",
     )
+    if add_to_parser:
+        return parser
+
     args = argparser.parse_args()
     args.noauth_local_webserver = True
+    return args
 
-    if not os.path.exists(args.file):
+def process_oauth_args(args, target_dir=None):
+    if target_dir and os.path.isdir(target_dir):
+        files = os.listdir(target_dir)
+        if not files:
+            exit(
+                "The specified directory is empty. Please provide a valid file or directory with files."
+            )
+        args.file = os.path.join(os.path.abspath(target_dir), files[0])
+
+    if not getattr(args, "file", None) or not os.path.exists(args.file):
         exit("Please specify a valid file using the --file= parameter.")
 
     file_name = os.path.splitext(os.path.basename(args.file))[0]
 
     # Populate default values for title, description, and other fields
     if getattr(args, "title", None) is None:
-        args.title = file_name
+        args.title = file_name.strip()
     if getattr(args, "description", None) is None:
-        args.description = file_name
+        args.description = file_name.strip()
 
+if __name__ == "__main__":
+    args = init_oauth_argparser()
+    process_oauth_args(args)
     youtube = get_authenticated_service(args)
     try:
         initialize_upload(youtube, args)

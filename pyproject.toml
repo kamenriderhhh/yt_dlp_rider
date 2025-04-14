@@ -31,5 +31,5 @@ dependencies = [
     "urllib3==2.2.3",
     "uv==0.5.31",
     "websockets==13.1",
-    "yt-dlp==2024.8.6",
+    "yt-dlp==2025.3.31",
 ]
