@@ -14,10 +14,10 @@ from oauth2client.tools import argparser, run_flow
 
 # Explicitly tell the underlying HTTP transport library not to retry, since
 # we are handling retry logic ourselves.
-httplib2.RETRIES = 1
+httplib2.RETRIES = 3
 
 # Maximum number of times to retry before giving up.
-MAX_RETRIES = 3
+MAX_RETRIES = 5
 
 # Always retry when these exceptions are raised.
 RETRIABLE_EXCEPTIONS = (httplib2.HttpLib2Error, IOError)
@@ -86,7 +86,7 @@ def get_authenticated_service(args):
     )
 
 
-def initialize_upload(youtube, options):
+def initialize_upload(youtube, options, logger=None):
     tags = None
     if getattr(options, "keywords", None):
         tags = options.keywords.split(",")
@@ -119,22 +119,25 @@ def initialize_upload(youtube, options):
         media_body=MediaFileUpload(options.file, chunksize=-1, resumable=True),
     )
 
-    resumable_upload(insert_request)
+    resumable_upload(insert_request, logger=logger)
 
 
 # This method implements an exponential backoff strategy to resume a
 # failed upload.
-def resumable_upload(insert_request):
+def resumable_upload(insert_request, logger=None):
     response = None
     error = None
     retry = 0
     while response is None:
         try:
-            print("Uploading file...")
+            log_or_print("Uploading file...", logger)
             status, response = insert_request.next_chunk()
             if response is not None:
                 if "id" in response:
-                    print(f"Video id '{response['id']}' was successfully uploaded.")
+                    log_or_print(f"Video id '{response['id']}' was successfully uploaded.", logger)
+                    # provide the youtube link of the uploaded video
+                    video_link = f"https://www.youtube.com/watch?v={response['id']}"
+                    log_or_print(f"Video link: {video_link}", logger)
                 else:
                     exit(f"The upload failed with an unexpected response: {response}")
         except HttpError as e:
@@ -146,14 +149,14 @@ def resumable_upload(insert_request):
             error = f"A retriable error occurred: {e}"
 
         if error is not None:
-            print(error)
+            log_or_print(error, logger)
             retry += 1
             if retry > MAX_RETRIES:
                 exit("No longer attempting to retry.")
 
             max_sleep = 2**retry
             sleep_seconds = random.random() * max_sleep
-            print(f"Sleeping {sleep_seconds} seconds and then retrying...")
+            log_or_print(f"Sleeping {sleep_seconds} seconds and then retrying...", logger)
             time.sleep(sleep_seconds)
 
 
@@ -208,6 +211,15 @@ def process_oauth_args(args, target_dir=None):
     if getattr(args, "description", None) is None:
         args.description = file_name.strip()
 
+def log_or_print(message, logger=None, is_error=False):
+    if logger:
+        if is_error:
+            logger.error(message)
+        else:
+            logger.info(message)
+    else:
+        print(message)
+
 if __name__ == "__main__":
     args = init_oauth_argparser()
     process_oauth_args(args)
@@ -215,4 +227,7 @@ if __name__ == "__main__":
     try:
         initialize_upload(youtube, args)
     except HttpError as e:
-        print(f"An HTTP error {e.resp.status} occurred:\n{e.content}")
+        log_or_print(f"An HTTP error {e.resp.status} occurred:\n{e.content}")
+    except Exception as e:
+        log_or_print(f"An error occurred: {e}")
+        

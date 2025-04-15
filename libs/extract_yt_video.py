@@ -1,9 +1,10 @@
 import requests, datetime, re, traceback, sys, threading, subprocess, os
 from time import sleep
 from http.cookiejar import MozillaCookieJar
+from yt_dlp import YoutubeDL
 
 
-def get_live_stream_details(url, cookies_filepath=""):
+def get_live_stream_details(url, cookies_filepath="", logger=None):
     headers = {
         "Accept-Language": "en-US,en;q=0.5",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.97 Safari/537.36",
@@ -56,49 +57,49 @@ def get_live_stream_details(url, cookies_filepath=""):
             "thumbnail_url": thumbnail_url,
         }
     except requests.RequestException as e:
-        print(f"Error during the request: {e}")
+        log_or_print(f"Error during the request: {e}", logger, is_error=True)
         return None
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        log_or_print(f"Unexpected error: {e}", logger, is_error=True)
         return None
 
 
-def update_timer(url, save_path, cookies_filepath="", print_details=False):
-    query_interval = 60 # wait for 1 min
+def update_timer(url, save_path, cookies_filepath="", print_details=False, logger=None):
+    query_interval = 60  # wait for 1 min
     if print_details:
-        print(f"Getting Live Stream Details of [{url}]\n")
-    details = get_live_stream_details(url)
+        log_or_print(f"Getting Live Stream Details of [{url}]\n", logger)
+    details = get_live_stream_details(url, cookies_filepath, logger)
     if print_details:
-        print(f"{details}\n")
+        log_or_print(f"{details}\n", logger)
     start_time = details["start_time"]
 
     if start_time is None:
-        checkbroadcast(url, save_path, cookies_filepath)
+        checkbroadcast(url, save_path, cookies_filepath, logger)
         return
 
     time_until_start = details["time_until_start"]
     if time_until_start <= 1:
-        checkbroadcast(url, save_path, cookies_filepath)
+        checkbroadcast(url, save_path, cookies_filepath, logger)
     else:
-        details["time_until_start"]
-        print(f"{details['time_until_start_str']} [next query {query_interval} sec]")
+        log_or_print(
+            f"{details['time_until_start_str']} [next query {query_interval} sec]",
+            logger,
+        )
         sleep(query_interval)
-        update_timer(url, save_path, cookies_filepath)
+        update_timer(url, save_path, cookies_filepath, print_details, logger)
 
-def checkbroadcast(url, save_path, cookies_filepath):
-    dots = 0
 
+def checkbroadcast(url, save_path, cookies_filepath, logger=None):
     def check_isitbroad():
-        nonlocal dots
-        if isitbroad(url, cookies_filepath): 
-            dots = (dots + 1) % 20  
-            print(f"Waiting for streamer to start⦁{'⦁' *dots}")
+        if isitbroad(url, cookies_filepath, logger):
+            log_or_print(f"Waiting for streamer to start⦁⦁⦁", logger)
             threading.Timer(0.5, check_isitbroad).start()
-        else: 
-            print("Starting Recording!! (˶˃ ᵕ ˂˶) .ᐟ.ᐟ")
-            start_recording(url, save_path, cookies_filepath)
-    
+        else:
+            log_or_print("Starting Recording!! (˶˃ ᵕ ˂˶) .ᐟ.ᐟ", logger)
+            start_recording(url, save_path, cookies_filepath, logger)
+
     check_isitbroad()
+
 
 def get_session(cookies_filepath=""):
     session = requests.Session()
@@ -108,11 +109,15 @@ def get_session(cookies_filepath=""):
             cookie_jar.load(cookies_filepath, ignore_discard=True, ignore_expires=True)
             session.cookies.update(cookie_jar)
         except Exception as e:
-            print(f"Error loading cookies: {str(e)}\n{traceback.format_exc()}\n")
+            log_or_print(
+                f"Error loading cookies: {str(e)}\n{traceback.format_exc()}\n",
+                is_error=True,
+            )
             sys.exit(1)
     return session
 
-def isitbroad(url, cookies_filepath):
+
+def isitbroad(url, cookies_filepath, logger=None):
     headers = {
         "Accept-Language": "en-US,en;q=0.5",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.97 Safari/537.36",
@@ -123,57 +128,77 @@ def isitbroad(url, cookies_filepath):
         response.raise_for_status()
 
         if '{"runs":[{"text":"Waiting for "}' in response.text:
-            return True 
+            return True
         else:
-            return False  
-        
+            return False
+
     except requests.RequestException as e:
-        print(f"Error during the request: {e}")
+        log_or_print(f"Error during the request: {e}", logger, is_error=True)
         return False
     except Exception as e:
-        print(f"Unexpected error: {e}")
-        return False 
-    
-def start_recording(url, save_path, cookies_filepath=""):
+        log_or_print(f"Unexpected error: {e}", logger, is_error=True)
+        return False
+
+
+def start_recording(url, save_path, cookies_filepath="", logger=None):
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
-    yt_dlp_command = f'yt-dlp -o "{save_path}/%(title)s.%(ext)s" -f bestvideo+bestaudio/best ' \
-                     f'--merge-output-format mp4 --retries 3 ' \
-                     f'--socket-timeout 30 {url}'
+    # yt-dlp options
+    ydl_opts = {
+        "outtmpl": f"{save_path}/%(title)s.%(ext)s",    # Output template
+        "format": "bestvideo+bestaudio/best",           # Best quality
+        "merge_output_format": "mp4",                   # Merge into MP4
+        "retries": 10,                                  # Retry on failure
+        "socket_timeout": 60,                           # Timeout for connections
+        "quiet": False,                                 # Show progress
+        "logger": logger,                               # Use the provided logger
+    }
     if cookies_filepath:
-        yt_dlp_command += " --cookies {token_file}"
-
-    # full_command = f'cmd.exe /c start cmd.exe /k "{yt_dlp_command}"'
-
-    # try:
-    #     subprocess.Popen(full_command, shell=True)
-    #     print("Recording started...")
-    # except Exception as e:
-    #     print(f"An error occurred while starting the recording process: {str(e)}")
+        ydl_opts["cookiefile"] = cookies_filepath
 
     def run_command():
         try:
-            result = subprocess.run(yt_dlp_command, shell=True, check=True, text=True)
-            print("Recording completed successfully.")
-        except subprocess.CalledProcessError as e:
-            print(f"An error occurred while recording: {e}")
+            with YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])  # Download the video
+                log_or_print("Recording completed successfully.", logger)
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            log_or_print(f"An error occurred while recording: {e}", logger, is_error=True)
 
-    # Create and start a thread to run the command
-    recording_thread = threading.Thread(target=run_command)
-    recording_thread.start()
+    # yt_dlp_command = f'yt-dlp -o "{save_path}/%(title)s.%(ext)s" -f bestvideo+bestaudio/best ' \
+    #                  f'--merge-output-format mp4 --retries 10 ' \
+    #                  f'--socket-timeout 60 {url}'
+    # if cookies_filepath:
+    #     yt_dlp_command += " --cookies {token_file}"
 
-    # Wait for the thread to finish
-    recording_thread.join()
-    print("Recording process finished.")
+    # def run_command():
+    #     try:
+    #         result = subprocess.run(yt_dlp_command, shell=True, check=True, text=True)
+    #         log_or_print("Recording completed successfully.", logger)
+    #     except subprocess.CalledProcessError as e:
+    #         log_or_print(f"An error occurred while recording: {e}", logger, is_error=True)
+    #     except Exception as e:
+    #         log_or_print(f"Unexpected error: {e}", logger, is_error=True)
 
-def extract_yt_video(video_url, save_path="C:/Users/USER/Downloads/yt-dlp-temp"):
-    update_timer(video_url, save_path, print_details=True)
-    
+    # Run the command in the main thread and wait for it to complete
+    run_command()
+    log_or_print("Recording process finished.", logger)
+
+
+def log_or_print(message, logger=None, is_error=False):
+    if logger:
+        if is_error:
+            logger.error(message)
+        else:
+            logger.info(message)
+    else:
+        print(message)
+
+
+def extract_yt_video(video_url, save_path="C:/Users/USER/Downloads/yt-dlp-temp/video", logger=None):
+    update_timer(video_url, save_path, print_details=True, logger=logger)
+
 
 if __name__ == "__main__":
     video_url = "https://www.youtube.com/watch?v=yanhEf8jK8o"  # Replace with actual video URL 米津玄師 - 地球儀
     extract_yt_video(video_url)
-
