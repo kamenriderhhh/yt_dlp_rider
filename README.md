@@ -22,6 +22,11 @@ Then run the python script with replace the url with actual YT video url
 ```
 uv run main.py -l [url]
 ```
+To upload video that is already downloaded w/o stream download
+```
+uv run libs/upload_video.py --file [absolute path to video]
+```
+
 
 ## uv
 uv related commands

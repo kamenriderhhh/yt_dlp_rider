@@ -153,6 +153,8 @@ def start_recording(url, save_path, cookies_filepath="", logger=None):
         "socket_timeout": 60,                           # Timeout for connections
         "quiet": False,                                 # Show progress
         "logger": logger,                               # Use the provided logger
+        "live_from_start": True,                        # Start downloading from the beginning of the live stream
+        "hls_use_mpegts": True,                         # Use MPEG-TS for better compatibility with live streams
     }
     if cookies_filepath:
         ydl_opts["cookiefile"] = cookies_filepath

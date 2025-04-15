@@ -164,7 +164,7 @@ def init_oauth_argparser(add_to_parser=None):
     if add_to_parser:
         parser = add_to_parser
     else:
-        parser = argparse.ArgumentParser(description="YouTube OAuth Argument Parser")
+        parser = argparser
 
     parser.add_argument("--file", help="Video file to upload")
     parser.add_argument("--title", help="Video title")
@@ -187,7 +187,7 @@ def init_oauth_argparser(add_to_parser=None):
     if add_to_parser:
         return parser
 
-    args = argparser.parse_args()
+    args = parser.parse_args()
     args.noauth_local_webserver = True
     return args
 
