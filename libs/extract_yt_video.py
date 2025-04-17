@@ -2,6 +2,7 @@ import requests, datetime, re, traceback, sys, threading, subprocess, os
 from time import sleep
 from http.cookiejar import MozillaCookieJar
 from yt_dlp import YoutubeDL
+from libs.common import log_or_print
 
 
 def get_live_stream_details(url, cookies_filepath="", logger=None):
@@ -185,16 +186,6 @@ def start_recording(url, save_path, cookies_filepath="", logger=None):
     # Run the command in the main thread and wait for it to complete
     run_command()
     log_or_print("Recording process finished.", logger)
-
-
-def log_or_print(message, logger=None, is_error=False):
-    if logger:
-        if is_error:
-            logger.error(message)
-        else:
-            logger.info(message)
-    else:
-        print(message)
 
 
 def extract_yt_video(video_url, save_path="C:/Users/USER/Downloads/yt-dlp-temp/video", logger=None):

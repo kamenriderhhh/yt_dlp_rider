@@ -28,6 +28,12 @@ class Logger:
         self.logger = logging.getLogger(log_file)
         self.logger.setLevel(log_level)
         self.logger.propagate = False  # Prevent duplicate logs
+        
+        # Set the logger file name and directory
+        self.logger.filepath = os.path.abspath(log_file)
+        self.logger.filename = os.path.basename(log_file)
+        self.logger.dirname = os.path.dirname(self.logger.filepath)
+
 
         # File handler with rotation
         file_handler = RotatingFileHandler(

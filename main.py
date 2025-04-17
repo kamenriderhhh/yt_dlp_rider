@@ -4,6 +4,8 @@ from datetime import datetime
 from libs.extract_yt_video import extract_yt_video
 from libs.upload_video import get_authenticated_service, initialize_upload, init_oauth_argparser, process_oauth_args
 from libs.logger import Logger
+# from libs.common import clear_old_logs
+from libs.common import clear_old_logs
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Download a video from a YouTube URL")
@@ -39,14 +41,15 @@ if __name__ == "__main__":
 
     logger.info(f"Video URL: {video_url}")
     logger.info(f"Video will be saved to: {save_path}")
+    logger.info(f"Log file: {logger.filepath}")
     
-    extract_yt_video(video_url=video_url, save_path=save_path, logger=logger)
+    # extract_yt_video(video_url=video_url, save_path=save_path, logger=logger)
 
     try:
         logger.info("Starting upload process...")
-        process_oauth_args(args, target_dir=save_path)
-        youtube = get_authenticated_service(args)
-        initialize_upload(youtube, args, logger=logger)
+        # process_oauth_args(args, target_dir=save_path)
+        # youtube = get_authenticated_service(args)
+        # initialize_upload(youtube, args, logger=logger)
     except HttpError as e:
         logger.error(f"An HTTP error {e.resp.status} occurred:\n{e.content}")
     except Exception as e:
@@ -54,6 +57,7 @@ if __name__ == "__main__":
     finally:
         logger.info("Script finished.")
         # Clean up
+        clear_old_logs(logger.dirname, retention_days=30, logger=logger)
         for handler in logger.handlers[:]:
             logger.removeHandler(handler)
             handler.close()

@@ -10,7 +10,7 @@ from apiclient.http import MediaFileUpload
 from oauth2client.client import flow_from_clientsecrets
 from oauth2client.file import Storage
 from oauth2client.tools import argparser, run_flow
-
+from libs.common import log_or_print
 
 # Explicitly tell the underlying HTTP transport library not to retry, since
 # we are handling retry logic ourselves.
@@ -210,15 +210,6 @@ def process_oauth_args(args, target_dir=None):
         args.title = file_name.strip()
     if getattr(args, "description", None) is None:
         args.description = file_name.strip()
-
-def log_or_print(message, logger=None, is_error=False):
-    if logger:
-        if is_error:
-            logger.error(message)
-        else:
-            logger.info(message)
-    else:
-        print(message)
 
 if __name__ == "__main__":
     args = init_oauth_argparser()
